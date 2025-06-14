@@ -23,6 +23,7 @@ import {
   Cloud,
   Settings,
   UtensilsCrossed,
+  CalendarDays,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -260,6 +261,11 @@ export default function FoodScheduler() {
               ) : (
                 <Cloud className="w-5 h-5 text-blue-500" />
               )}
+              <Link href="/weekly">
+                <Button variant="ghost" size="sm" title="Weekly Planner">
+                  <CalendarDays className="w-4 h-4" />
+                </Button>
+              </Link>
               <Link href="/meals">
                 <Button variant="ghost" size="sm" title="View All Meals">
                   <UtensilsCrossed className="w-4 h-4" />
