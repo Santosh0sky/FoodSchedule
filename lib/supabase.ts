@@ -8,7 +8,7 @@ export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey)
 
 if (!isSupabaseConfigured) {
   console.warn("Supabase not configured - running in local mode")
-  console.log("To enable database sync, set these environment variables:")
+  console.log("To enable cross-platform sync, set these environment variables:")
   console.log("- NEXT_PUBLIC_SUPABASE_URL")
   console.log("- NEXT_PUBLIC_SUPABASE_ANON_KEY")
 }
@@ -25,8 +25,10 @@ export type Database = {
           time: string
           food: string
           user_id: string | null
+          device_id: string | null
           created_at: string
           updated_at: string
+          synced_at: string | null
         }
         Insert: {
           id?: string
@@ -34,8 +36,10 @@ export type Database = {
           time: string
           food: string
           user_id?: string | null
+          device_id?: string | null
           created_at?: string
           updated_at?: string
+          synced_at?: string | null
         }
         Update: {
           id?: string
@@ -43,8 +47,36 @@ export type Database = {
           time?: string
           food?: string
           user_id?: string | null
+          device_id?: string | null
           created_at?: string
           updated_at?: string
+          synced_at?: string | null
+        }
+      }
+      sync_codes: {
+        Row: {
+          id: string
+          code: string
+          device_name: string
+          created_at: string
+          expires_at: string
+          used: boolean
+        }
+        Insert: {
+          id?: string
+          code: string
+          device_name: string
+          created_at?: string
+          expires_at: string
+          used?: boolean
+        }
+        Update: {
+          id?: string
+          code?: string
+          device_name?: string
+          created_at?: string
+          expires_at?: string
+          used?: boolean
         }
       }
     }
