@@ -1,25 +1,40 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Trash2, Plus, Edit2, Save, X, ChevronLeft, ChevronRight, History, CalendarIcon } from "lucide-react"
+import {
+  Trash2,
+  Plus,
+  Edit2,
+  Save,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  History,
+  CalendarIcon,
+  Loader2,
+  Wifi,
+  WifiOff,
+  HardDrive,
+  Cloud,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useMeals } from "@/hooks/use-meals"
 
 interface MealEntry {
   id: string
+  date: string
   time: string
   food: string
-  createdAt: string
-}
-
-interface DaySchedule {
-  [key: string]: MealEntry[]
+  created_at: string
+  updated_at: string
 }
 
 function formatDateKey(date: Date) {
@@ -28,10 +43,52 @@ function formatDateKey(date: Date) {
 
 export default function FoodScheduler() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [schedules, setSchedules] = useState<DaySchedule>({})
   const [editingId, setEditingId] = useState<string | null>(null)
   const [newMeal, setNewMeal] = useState({ time: "", food: "" })
   const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [isOnline, setIsOnline] = useState(true)
+
+  const {
+    schedules,
+    loading,
+    error,
+    isLocalMode,
+    fetchMealsForDate,
+    fetchMealsForRange,
+    addMeal,
+    updateMeal,
+    deleteMeal,
+  } = useMeals()
+
+  // Check online status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
+
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
+    }
+  }, [])
+
+  // Load meals for selected date
+  useEffect(() => {
+    if (selectedDate) {
+      const dateKey = formatDateKey(selectedDate)
+      fetchMealsForDate(dateKey)
+    }
+  }, [selectedDate, fetchMealsForDate])
+
+  // Load meals for current month when month changes
+  useEffect(() => {
+    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+
+    fetchMealsForRange(formatDateKey(startOfMonth), formatDateKey(endOfMonth))
+  }, [currentMonth, fetchMealsForRange])
 
   const getSelectedDateKey = () => {
     return selectedDate ? formatDateKey(selectedDate) : ""
@@ -63,43 +120,43 @@ export default function FoodScheduler() {
     return compareDate > today
   }
 
-  const addMeal = () => {
+  const handleAddMeal = async () => {
     if (!newMeal.time || !newMeal.food || !selectedDate) return
 
-    const dateKey = getSelectedDateKey()
-    const newEntry: MealEntry = {
-      id: Date.now().toString(),
-      time: newMeal.time,
-      food: newMeal.food,
-      createdAt: new Date().toISOString(),
+    try {
+      const dateKey = getSelectedDateKey()
+      console.log("Adding meal for date:", dateKey, "Time:", newMeal.time, "Food:", newMeal.food)
+
+      await addMeal(dateKey, newMeal.time, newMeal.food)
+      setNewMeal({ time: "", food: "" })
+      console.log("Meal added successfully")
+    } catch (error) {
+      console.error("Failed to add meal:", error)
+      // The error is already set in the useMeals hook
     }
-
-    setSchedules((prev) => ({
-      ...prev,
-      [dateKey]: [...(prev[dateKey] || []), newEntry].sort((a, b) => a.time.localeCompare(b.time)),
-    }))
-
-    setNewMeal({ time: "", food: "" })
   }
 
-  const updateMeal = (id: string, time: string, food: string) => {
-    const dateKey = getSelectedDateKey()
-    setSchedules((prev) => ({
-      ...prev,
-      [dateKey]:
-        prev[dateKey]
-          ?.map((meal) => (meal.id === id ? { ...meal, time, food } : meal))
-          .sort((a, b) => a.time.localeCompare(b.time)) || [],
-    }))
-    setEditingId(null)
+  const handleUpdateMeal = async (id: string, time: string, food: string) => {
+    try {
+      console.log("Updating meal:", id, time, food)
+      await updateMeal(id, time, food)
+      setEditingId(null)
+      console.log("Meal updated successfully")
+    } catch (error) {
+      console.error("Failed to update meal:", error)
+      // The error is already set in the useMeals hook
+    }
   }
 
-  const deleteMeal = (id: string) => {
-    const dateKey = getSelectedDateKey()
-    setSchedules((prev) => ({
-      ...prev,
-      [dateKey]: prev[dateKey]?.filter((meal) => meal.id !== id) || [],
-    }))
+  const handleDeleteMeal = async (id: string) => {
+    try {
+      console.log("Deleting meal:", id)
+      await deleteMeal(id)
+      console.log("Meal deleted successfully")
+    } catch (error) {
+      console.error("Failed to delete meal:", error)
+      // The error is already set in the useMeals hook
+    }
   }
 
   const getDayMealCount = (date: Date) => {
@@ -185,9 +242,50 @@ export default function FoodScheduler() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 p-4">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Food Scheduler</h1>
-          <p className="text-gray-600">Plan your meals for every day of the month</p>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <h1 className="text-4xl font-bold text-gray-800">Food Scheduler</h1>
+            <div className="flex items-center gap-1">
+              {isOnline ? <Wifi className="w-6 h-6 text-green-500" /> : <WifiOff className="w-6 h-6 text-red-500" />}
+              {isLocalMode ? (
+                <HardDrive className="w-5 h-5 text-orange-500" />
+              ) : (
+                <Cloud className="w-5 h-5 text-blue-500" />
+              )}
+            </div>
+          </div>
+          <p className="text-gray-600">
+            Plan your meals for every day of the month - {isLocalMode ? "stored locally" : "synced across all devices"}
+          </p>
+          <div className="flex items-center justify-center gap-4 mt-2">
+            {isLocalMode && (
+              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                <HardDrive className="w-3 h-3 mr-1" />
+                Local Mode
+              </Badge>
+            )}
+            {!isOnline && (
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                <WifiOff className="w-3 h-3 mr-1" />
+                Offline
+              </Badge>
+            )}
+          </div>
         </div>
+
+        {error && (
+          <Alert className="mb-6 max-w-2xl mx-auto">
+            <AlertDescription className="text-red-600">Error: {error}</AlertDescription>
+          </Alert>
+        )}
+
+        {isLocalMode && (
+          <Alert className="mb-6 max-w-2xl mx-auto">
+            <AlertDescription>
+              Running in local mode. Your data is saved in your browser. To enable cloud sync, set up Supabase
+              environment variables.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Calendar Section */}
@@ -195,16 +293,21 @@ export default function FoodScheduler() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <span>🍽️</span>
-                  <div className="flex items-center gap-2">
-                    {selectedDate ? formatDisplayDate(selectedDate) : "Select a Date"}
-                  </div>
+                  <span>📅</span>
+                  Monthly Calendar
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 </CardTitle>
-                {selectedDate && (
-                  <Badge variant="outline" className={`${getDateStatusColor(selectedDate)} text-white`}>
-                    {getDateStatusText(selectedDate)}
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-[120px] text-center">
+                    {currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                  </span>
+                  <Button variant="outline" size="sm" onClick={() => navigateMonth("next")}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* Enhanced Date Navigation */}
@@ -397,8 +500,16 @@ export default function FoodScheduler() {
                           />
                         </div>
                       </div>
-                      <Button onClick={addMeal} className="w-full" disabled={!newMeal.time || !newMeal.food}>
-                        <Plus className="w-4 h-4 mr-2" />
+                      <Button
+                        onClick={handleAddMeal}
+                        className="w-full"
+                        disabled={!newMeal.time || !newMeal.food || loading}
+                      >
+                        {loading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Plus className="w-4 h-4 mr-2" />
+                        )}
                         {isFutureDate(selectedDate) ? "Plan Meal" : "Add Meal"}
                       </Button>
                     </div>
@@ -409,7 +520,12 @@ export default function FoodScheduler() {
                         {getDateStatusText(selectedDate)}'s Schedule ({getCurrentMeals().length} meals)
                       </h3>
 
-                      {getCurrentMeals().length === 0 ? (
+                      {loading && getCurrentMeals().length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                          Loading meals...
+                        </div>
+                      ) : getCurrentMeals().length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
                           <span className="text-4xl mb-2 block">🍽️</span>
                           {isFutureDate(selectedDate)
@@ -426,11 +542,12 @@ export default function FoodScheduler() {
                               meal={meal}
                               isEditing={editingId === meal.id}
                               onEdit={() => setEditingId(meal.id)}
-                              onSave={(time, food) => updateMeal(meal.id, time, food)}
+                              onSave={(time, food) => handleUpdateMeal(meal.id, time, food)}
                               onCancel={() => setEditingId(null)}
-                              onDelete={() => deleteMeal(meal.id)}
+                              onDelete={() => handleDeleteMeal(meal.id)}
                               isPast={isPastDate(selectedDate)}
                               isFuture={isFutureDate(selectedDate)}
+                              loading={loading}
                             />
                           ))}
                         </div>
@@ -519,9 +636,10 @@ interface MealEntryProps {
   onDelete: () => void
   isPast: boolean
   isFuture: boolean
+  loading: boolean
 }
 
-function MealEntry({ meal, isEditing, onEdit, onSave, onCancel, onDelete, isPast, isFuture }: MealEntryProps) {
+function MealEntry({ meal, isEditing, onEdit, onSave, onCancel, onDelete, isPast, isFuture, loading }: MealEntryProps) {
   const [editTime, setEditTime] = useState(meal.time)
   const [editFood, setEditFood] = useState(meal.food)
 
@@ -545,11 +663,11 @@ function MealEntry({ meal, isEditing, onEdit, onSave, onCancel, onDelete, isPast
           <Input value={editFood} onChange={(e) => setEditFood(e.target.value)} placeholder="Food/Meal" />
         </div>
         <div className="flex gap-2">
-          <Button size="sm" onClick={handleSave} disabled={!editTime || !editFood}>
-            <Save className="w-3 h-3 mr-1" />
+          <Button size="sm" onClick={handleSave} disabled={!editTime || !editFood || loading}>
+            {loading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}
             Save
           </Button>
-          <Button size="sm" variant="outline" onClick={handleCancel}>
+          <Button size="sm" variant="outline" onClick={handleCancel} disabled={loading}>
             <X className="w-3 h-3 mr-1" />
             Cancel
           </Button>
@@ -589,11 +707,17 @@ function MealEntry({ meal, isEditing, onEdit, onSave, onCancel, onDelete, isPast
         )}
       </div>
       <div className="flex gap-1">
-        <Button size="sm" variant="ghost" onClick={onEdit}>
+        <Button size="sm" variant="ghost" onClick={onEdit} disabled={loading}>
           <Edit2 className="w-3 h-3" />
         </Button>
-        <Button size="sm" variant="ghost" onClick={onDelete} className="text-red-600 hover:text-red-700">
-          <Trash2 className="w-3 h-3" />
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onDelete}
+          className="text-red-600 hover:text-red-700"
+          disabled={loading}
+        >
+          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
         </Button>
       </div>
     </div>
