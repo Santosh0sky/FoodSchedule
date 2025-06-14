@@ -21,14 +21,12 @@ import {
   WifiOff,
   HardDrive,
   Cloud,
-  Settings,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useMeals } from "@/hooks/use-meals"
-import { SyncDialog } from "@/components/sync-dialog"
 
 interface MealEntry {
   id: string
@@ -49,7 +47,6 @@ export default function FoodScheduler() {
   const [newMeal, setNewMeal] = useState({ time: "", food: "" })
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [isOnline, setIsOnline] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
 
   const {
     schedules,
@@ -83,7 +80,7 @@ export default function FoodScheduler() {
       const dateKey = formatDateKey(selectedDate)
       fetchMealsForDate(dateKey)
     }
-  }, [selectedDate, fetchMealsForDate, refreshKey])
+  }, [selectedDate, fetchMealsForDate])
 
   // Load meals for current month when month changes
   useEffect(() => {
@@ -91,11 +88,7 @@ export default function FoodScheduler() {
     const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
 
     fetchMealsForRange(formatDateKey(startOfMonth), formatDateKey(endOfMonth))
-  }, [currentMonth, fetchMealsForRange, refreshKey])
-
-  const handleDataImported = () => {
-    setRefreshKey((prev) => prev + 1)
-  }
+  }, [currentMonth, fetchMealsForRange])
 
   const getSelectedDateKey = () => {
     return selectedDate ? formatDateKey(selectedDate) : ""
@@ -258,11 +251,6 @@ export default function FoodScheduler() {
               ) : (
                 <Cloud className="w-5 h-5 text-blue-500" />
               )}
-              <SyncDialog onDataImported={handleDataImported}>
-                <Button variant="ghost" size="sm">
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </SyncDialog>
             </div>
           </div>
           <p className="text-gray-600">
@@ -293,8 +281,8 @@ export default function FoodScheduler() {
         {isLocalMode && (
           <Alert className="mb-6 max-w-2xl mx-auto">
             <AlertDescription>
-              Running in local mode. Your data is saved in your browser. Click the settings icon to enable
-              cross-platform sync.
+              Running in local mode. Your data is saved in your browser. To enable cloud sync, set up Supabase
+              environment variables.
             </AlertDescription>
           </Alert>
         )}
